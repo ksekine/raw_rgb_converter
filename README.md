@@ -11,7 +11,7 @@ pip install -r requirements.txt
 ## Raw (RGGB) to RGB  
 
 ```
-python raw2rgb.py --load_dir [LOAD_DIR] --save_dir [SAVE_DIR] --width [IMAGE_WIDTH] --height [IMAGE_HEIGHT] --ext [SEARCH_EXTENSION]
+python raw2rgb.py --load_dir [LOAD_DIR] --save_dir [SAVE_DIR] --width [IMAGE_WIDTH] --height [IMAGE_HEIGHT] --ext [SEARCH_EXTENSION] --data_type [DATA_TYPE]
 ```
 
 ## RGB to Raw (RGGB)  

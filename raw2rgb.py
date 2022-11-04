@@ -5,38 +5,25 @@ import os
 import argparse
 
 
-def pack_raw_image(raw_image):
-    out = np.zeros_like(
-        raw_image, 
-        shape=(4, raw_image.shape[0] // 2, raw_image.shape[1] // 2)
-    )
-
-    out[0, :, :] = raw_image[0::2, 0::2]
-    out[1, :, :] = raw_image[0::2, 1::2]
-    out[2, :, :] = raw_image[1::2, 0::2]
-    out[3, :, :] = raw_image[1::2, 1::2]
-
-    return out
-
-
 def demosaic(raw_image):
-    raw_image = pack_raw_image(raw_image)
-    raw_image = np.clip(raw_image, 0.0, 1.0) * 255.0
+    return cv2.cvtColor(raw_image, cv2.COLOR_BAYER_BG2BGR)
 
-    raw_image_sc = np.zeros((raw_image.shape[-2] * 2, raw_image.shape[-1] * 2, 1))
-    raw_image_sc[::2, ::2, 0] = raw_image[0, :, :]
-    raw_image_sc[::2, 1::2, 0] = raw_image[1, :, :]
-    raw_image_sc[1::2, ::2, 0] = raw_image[2, :, :]
-    raw_image_sc[1::2, 1::2, 0] = raw_image[3, :, :]
-    raw_image_sc = raw_image_sc.astype(np.uint8)
 
-    rgb_image = cv2.cvtColor(raw_image_sc, cv2.COLOR_BAYER_BG2BGR)
-    
+def rescale(rgb_image, dtype):
+    if dtype == 'float32':
+        max = 1.0
+    elif dtype == 'uint8':
+        max = 255.0
+    elif dtype == 'uint16':
+        max = 65535.0
+    else:
+        raise ValueError('not supported data type.')
+
     # Rescaale pixel value range
-    # rgb_image = rgb_image.astype(np.float32)
-    # rgb_image = rgb_image / np.max(rgb_image)
-    # rgb_image = np.clip(rgb_image, 0.0, 1.0) * 255.0
-    # rgb_image = rgb_image.astype(np.uint8)
+    rgb_image = rgb_image.astype(np.float32)
+    rgb_image = rgb_image / np.max(rgb_image)
+    rgb_image = np.clip(rgb_image, 0.0, 1.0) * max
+    rgb_image = rgb_image.astype(dtype)
 
     return rgb_image
 
@@ -48,13 +35,25 @@ if __name__ == '__main__':
     parser.add_argument('--width', type=int, required=True, help='raw input width')
     parser.add_argument('--height', type=int, required=True, help='raw input height')
     parser.add_argument('--ext', type=str, default='raw', help='search extension')
+    parser.add_argument('--data_type', type=str, default='float32', choices=['float32', 'uint8', 'uint16'], help='input data type')
     args = parser.parse_args()
+
+    if args.data_type == 'float32':
+        data_type = np.float32
+    elif args.data_type == 'uint8':
+        data_type = np.uint8
+    elif args.data_type == 'uint16':
+        data_type = np.uint16
+    else:
+        raise ValueError('not supported data type.')
 
     files = sorted(glob.glob(os.path.join(args.load_dir, '*.' + args.ext)))
     for i, file in enumerate(files):
-        raw_data = np.fromfile(file, np.float32)
-        raw_image = raw_data.reshape(args.width, args.height)
+        raw_data = np.fromfile(file, data_type)
+        raw_image = raw_data.reshape(args.height, args.width, 1)
+
         rgb_image = demosaic(raw_image)
+        rgb_image = rescale(rgb_image, rgb_image.dtype)
 
         if not os.path.exists(args.save_dir):
             os.makedirs(args.save_dir)
